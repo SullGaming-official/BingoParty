@@ -27,6 +27,7 @@ textarea{min-height:200px}
 .grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .cell{aspect-ratio:1;border:2px solid var(--line);border-radius:12px;background:#f3fbfa;color:#0c2f33;font:inherit;font-weight:700;font-size:clamp(13px,4.2vw,22px);cursor:pointer;padding:2px;overflow:hidden;word-break:break-word}
 .cell.on{background:var(--red);color:#fff;border-color:#fff;box-shadow:inset 0 0 0 4px var(--red),inset 0 0 0 7px #fff}
+.hdr{margin-bottom:6px}.hdr span{text-align:center;font-weight:700;font-size:clamp(22px,8vw,38px);color:#10282a;border-radius:12px;padding:4px 0}
 .shake{animation:sh .35s}@keyframes sh{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 .modes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .mode{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:16px 8px;color:var(--ink);font:inherit;font-size:17px;cursor:pointer}
@@ -276,6 +277,7 @@ function renderPlay(){
   const g=game,cl=g.mode==="classic";let body;
   if(g.status!=="playing")body=`<div class="card center"><div class="big">⏳</div><h2>Waiting for host to start...</h2>${g.winner?`<p>🎉 ${esc(g.winner.name)} got BINGO! Your board was wiped.</p>`:""}</div>`;
   else body=`<div class="card center"><div class="mut">${cl?"Number called":"Solve it, then tap the answer"}</div><div class="big">${g.current>=0?esc(g.pool[g.current].q):"Get ready…"}</div>${!cl&&lockQ===g.qid?'<div class="bad">Locked until the next question</div>':""}</div>
+   <div class="grid5 hdr">${[..."BINGO"].map((l,i)=>`<span style="background:${["#ff5a4f","#ffd23f","#38e0a0","#3aa0ff","#c084ff"][i]}">${l}</span>`).join("")}</div>
    <div class="grid5">${card.map((ix,p)=>`<button class="cell ${marks.has(p)?"on":""}" onclick="A.tap(${p})">${esc(g.pool[ix].a)}</button>`).join("")}</div>`;
   go("play",`<div class="card center"><span class="mut">Game</span> <b style="letter-spacing:4px">${code}</b> <button class="btn sm ghost" onclick="A.leave()">Leave</button></div>${body}
   <div class="card"><div class="mut">Players in this game (${players.length})</div><div class="chips">${players.map(p=>`<span class="chip">${p.skin} ${esc(p.name)}${p.wins?` · ${p.wins}🏆`:""}</span>`).join("")}</div></div>`);
