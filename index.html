@@ -2,6 +2,7 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bingo Party</title>
+<link rel="icon" type="image/png" href="Bingo_Party_Icon.png">
 <style>
 :root{--bg:#0c2f33;--bg2:#12474b;--card:#0f3d41;--line:#1f6a6f;--ink:#f3fbfa;--mut:#8fc4c1;--ball:#ffd23f;--red:#ff5a4f;--blue:#3aa0ff;--ok:#38e0a0}
 *{box-sizing:border-box}
@@ -44,12 +45,13 @@ textarea{min-height:200px}
 <script type="module">
 /* ================== FIREBASE SETUP: paste your web app config here ================== */
 const firebaseConfig={
-  apiKey:"PASTE_API_KEY",
-  authDomain:"PASTE_PROJECT.firebaseapp.com",
-  projectId:"PASTE_PROJECT_ID",
-  storageBucket:"PASTE_PROJECT.appspot.com",
-  messagingSenderId:"PASTE",
-  appId:"PASTE"
+  apiKey:"AIzaSyBDA5Ki5LL97MlbtgNM7iJQFYLNciBSH6U",
+  authDomain:"bingoparty-sg.firebaseapp.com",
+  projectId:"bingoparty-sg",
+  storageBucket:"bingoparty-sg.firebasestorage.app",
+  messagingSenderId:"819947836083",
+  appId:"1:819947836083:web:d98ddf4816bb595b8d16c6",
+  measurementId:"G-1CQGPM3GJ6"
 };
 /* ==================================================================================== */
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -76,7 +78,7 @@ A.auth=(s="home")=>{
   const b=(t,f,c="")=>`<button class="btn ${c}" onclick="${f}">${t}</button>`,back=b("Back","A.auth()","ghost");
   const warn=configured?"":`<div class="card bad">Firebase isn't connected yet. Paste your config at the top of this file's script.</div>`;
   const F={
-    home:`<h1>🎱 Bingo Party</h1>${warn}${b("Sign in","A.auth('in')")}${b("Sign up","A.auth('up')","alt")}`,
+    home:`<h1>🎉 Bingo Party</h1>${warn}${b("Sign in","A.auth('in')")}${b("Sign up","A.auth('up')","alt")}`,
     in:`<h2>Sign in</h2>${b("Sign in with Email","A.auth('inE')")}${b("Sign in with Google","A.google()","alt")}${back}`,
     up:`<h2>Sign up</h2>${b("Sign up with Email","A.auth('upE')")}${b("Sign up with Google","A.google()","alt")}${back}`,
     inE:`<h2>Sign in with Email</h2><input id="u" placeholder="Username" autocomplete="username"><input id="p" type="password" placeholder="Password" autocomplete="current-password">${b("Sign in","A.doIn()")}${b("Back","A.auth('in')","ghost")}`,
@@ -130,7 +132,7 @@ onAuthStateChanged(auth,u=>{if(creating)return;if(u)enter(u);else if(!["inE","up
 /* ---------- HOME ---------- */
 A.home=()=>{
   leaveCleanup();
-  go("home",`<h1>🎱 Bingo</h1>
+  go("home",`<h1>🎉 Bingo</h1>
   <button class="btn" onclick="A.hostSetup()">Host a game</button>
   <div class="card"><div class="mut">Join a game</div><input id="jc" maxlength="6" placeholder="6-character code" style="text-transform:uppercase;letter-spacing:6px;text-align:center;font-size:24px"><button class="btn alt" onclick="A.join()">Join</button></div>
   <button class="btn ghost" onclick="A.shop()">🛍️ Skin shop</button>
