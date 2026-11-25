@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bingo Party</title>
+<style>
+:root{--bg:#0c2f33;--bg2:#12474b;--card:#0f3d41;--line:#1f6a6f;--ink:#f3fbfa;--mut:#8fc4c1;--ball:#ffd23f;--red:#ff5a4f;--blue:#3aa0ff;--ok:#38e0a0}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;color:var(--ink);font-family:"Arial Rounded MT Bold","Trebuchet MS",system-ui,sans-serif;background:radial-gradient(circle at 15% -10%,var(--bg2),var(--bg) 60%) fixed}
+#top{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding:10px 16px;min-height:50px}
+#top .av{font-size:26px}#top .pts{background:var(--ball);color:#352a00;border-radius:99px;padding:3px 12px;font-weight:700}
+main{max-width:560px;margin:0 auto;padding:0 16px 40px}
+h1{font-size:42px;margin:6px 0 18px;text-align:center;letter-spacing:-1px}
+h2{margin:6px 0 10px}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:16px;margin:12px 0}
+.center{text-align:center}.mut{color:var(--mut);font-size:14px}.bad{color:var(--red);font-weight:700}
+.btn{display:block;width:100%;margin:10px 0;padding:15px;border:0;border-radius:14px;background:var(--ball);color:#352a00;font:inherit;font-size:18px;font-weight:700;cursor:pointer;box-shadow:0 4px 0 #b88f00}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #b88f00}
+.btn.alt{background:var(--blue);color:#021a33;box-shadow:0 4px 0 #1b6fb8}
+.btn.red{background:var(--red);color:#2a0300;box-shadow:0 4px 0 #b02a22}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:none;border:2px solid var(--line)}
+.btn.sm{display:inline-block;width:auto;padding:8px 14px;font-size:15px;margin:4px}
+input,textarea,select{width:100%;padding:13px;margin:6px 0;border-radius:12px;border:2px solid var(--line);background:#09292c;color:var(--ink);font:inherit;font-size:17px}
+textarea{min-height:200px}
+.code{font-size:54px;letter-spacing:8px;font-weight:700;color:var(--ball)}
+.big{font-size:44px;font-weight:700;margin:6px 0}
+.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.cell{aspect-ratio:1;border:2px solid var(--line);border-radius:12px;background:#f3fbfa;color:#0c2f33;font:inherit;font-weight:700;font-size:clamp(13px,4.2vw,22px);cursor:pointer;padding:2px;overflow:hidden;word-break:break-word}
+.cell.on{background:var(--red);color:#fff;border-color:#fff;box-shadow:inset 0 0 0 4px var(--red),inset 0 0 0 7px #fff}
+.shake{animation:sh .35s}@keyframes sh{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mode{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:16px 8px;color:var(--ink);font:inherit;font-size:17px;cursor:pointer}
+.mode b{display:block;font-size:30px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{background:var(--bg2);border-radius:99px;padding:4px 11px;font-size:14px}
+.chip.ball{background:var(--ball);color:#352a00;font-weight:700}
+.skins{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.skin{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:12px 4px;text-align:center}
+.skin.eq{border-color:var(--ok)}.skin span{font-size:40px;display:block}
+#toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,80px);background:#fff;color:#111;padding:12px 18px;border-radius:12px;font-weight:700;transition:.25s;z-index:9;max-width:90vw;text-align:center}
+#toast.on{transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){.shake{animation:none}#toast{transition:none}}
+</style></head>
+<body>
+<div id="top"></div><main id="app"></main><div id="toast"></div>
+<script type="module">
+/* ================== FIREBASE SETUP: paste your web app config here ================== */
+const firebaseConfig={
+  apiKey:"PASTE_API_KEY",
+  authDomain:"PASTE_PROJECT.firebaseapp.com",
+  projectId:"PASTE_PROJECT_ID",
+  storageBucket:"PASTE_PROJECT.appspot.com",
+  messagingSenderId:"PASTE",
+  appId:"PASTE"
+};
+/* ==================================================================================== */
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {getAuth,onAuthStateChanged,signInWithPopup,GoogleAuthProvider,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut,updatePassword,verifyBeforeUpdateEmail,reauthenticateWithCredential,EmailAuthProvider,linkWithCredential} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {getFirestore,doc,getDoc,setDoc,updateDoc,deleteDoc,onSnapshot,collection,runTransaction,writeBatch,increment,arrayUnion} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const configured=!firebaseConfig.apiKey.startsWith("PASTE");
+const fb=initializeApp(firebaseConfig),auth=getAuth(fb),db=getFirestore(fb);
+const A=window.A={},app=document.getElementById("app");
+const $=i=>document.getElementById(i),val=i=>$(i).value.trim();
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const SKINS=[["🙂",0],["😎",20],["🐱",30],["🐶",30],["🦊",40],["🤖",50],["👽",60],["🐲",80],["🦄",100],["👑",150]];
+const MODES={classic:["🔢","Classic"],add:["➕","Addition"],sub:["➖","Subtraction"],mul:["✖️","Multiplication"],div:["➗","Division"],create:["✏️","Create"]};
+let me=null,prof=null,cur="",creating=false,unP,unG,unPl,game=null,code="",isHost=false,players=[],card=[],marks=new Set(),cardRound=-1,lockQ=-1,auto=null,autoSec=8,claiming=false;
+
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("on"),2800)}
+const err=e=>toast(String(e.code||e.message||e).replace("auth/","").replace(/-/g," "));
+function updTop(){$("top").innerHTML=prof?`<span class="av">${prof.skin}</span><b>${esc(prof.username)}</b><span class="pts">⭐ ${prof.points}</span>`:""}
+function go(n,h){cur=n;app.innerHTML=h;updTop()}
+const okName=u=>/^[A-Za-z0-9_]{3,16}$/.test(u)||(toast("Username: 3-16 letters, numbers or _"),false);
+
+/* ---------- AUTH SCREENS ---------- */
+A.auth=(s="home")=>{
+  const b=(t,f,c="")=>`<button class="btn ${c}" onclick="${f}">${t}</button>`,back=b("Back","A.auth()","ghost");
+  const warn=configured?"":`<div class="card bad">Firebase isn't connected yet. Paste your config at the top of this file's script.</div>`;
+  const F={
+    home:`<h1>🎱 Bingo Party</h1>${warn}${b("Sign in","A.auth('in')")}${b("Sign up","A.auth('up')","alt")}`,
+    in:`<h2>Sign in</h2>${b("Sign in with Email","A.auth('inE')")}${b("Sign in with Google","A.google()","alt")}${back}`,
+    up:`<h2>Sign up</h2>${b("Sign up with Email","A.auth('upE')")}${b("Sign up with Google","A.google()","alt")}${back}`,
+    inE:`<h2>Sign in with Email</h2><input id="u" placeholder="Username" autocomplete="username"><input id="p" type="password" placeholder="Password" autocomplete="current-password">${b("Sign in","A.doIn()")}${b("Back","A.auth('in')","ghost")}`,
+    upE:`<h2>Sign up with Email</h2><input id="u" placeholder="Choose a username" autocomplete="username"><input id="e" type="email" placeholder="Email" autocomplete="email"><input id="p" type="password" placeholder="Password (6+ characters)" autocomplete="new-password">${b("Create account","A.doUp()")}${b("Back","A.auth('up')","ghost")}`
+  };
+  go("auth",F[s]);
+};
+A.google=async()=>{try{await signInWithPopup(auth,new GoogleAuthProvider())}catch(e){err(e)}};
+A.doIn=async()=>{
+  try{let id=val("u"),email=id;
+    if(!id.includes("@")){const s=await getDoc(doc(db,"usernames",id.toLowerCase()));if(!s.exists())return toast("No account with that username");email=s.data().email}
+    await signInWithEmailAndPassword(auth,email,$("p").value);
+  }catch(e){err(e)}
+};
+A.doUp=async()=>{
+  const u=val("u"),e=val("e"),p=$("p").value;if(!okName(u))return;if(p.length<6)return toast("Password needs 6+ characters");
+  try{
+    if((await getDoc(doc(db,"usernames",u.toLowerCase()))).exists())return toast("That username is taken");
+    creating=true;const c=await createUserWithEmailAndPassword(auth,e,p);await mkProfile(c.user,u,e);creating=false;enter(c.user);
+  }catch(x){creating=false;err(x)}
+};
+async function mkProfile(user,name,email){
+  const b=writeBatch(db);
+  b.set(doc(db,"users",user.uid),{username:name,email,points:0,owned:["🙂"],skin:"🙂"});
+  b.set(doc(db,"usernames",name.toLowerCase()),{uid:user.uid,email});
+  await b.commit();
+}
+function nameScreen(){
+  go("name",`<h2>Make a username</h2><p class="mut">This is how other players will see you.</p><input id="u" placeholder="Username" maxlength="16">
+  <button class="btn" onclick="A.saveName()">Save username</button><button class="btn ghost" onclick="A.out()">Cancel</button>`);
+}
+A.saveName=async()=>{
+  const u=val("u");if(!okName(u))return;
+  try{if((await getDoc(doc(db,"usernames",u.toLowerCase()))).exists())return toast("That username is taken");
+    await mkProfile(me,u,me.email||"");enter(me)}catch(e){err(e)}
+};
+async function enter(user){
+  me=user;const s=await getDoc(doc(db,"users",user.uid));
+  if(!s.exists())return nameScreen();
+  const d=s.data();
+  if(user.email&&d.email!==user.email){ // keep username->email lookup current after an email change
+    try{const b=writeBatch(db);b.update(doc(db,"users",user.uid),{email:user.email});b.update(doc(db,"usernames",d.username.toLowerCase()),{email:user.email});await b.commit()}catch(e){}
+  }
+  unP&&unP();
+  unP=onSnapshot(doc(db,"users",user.uid),x=>{prof=x.data();updTop();if(cur==="home")A.home();if(cur==="shop")A.shop()});
+  A.home();
+}
+A.out=async()=>{leaveCleanup();unP&&unP();prof=null;me=null;await signOut(auth);A.auth()};
+onAuthStateChanged(auth,u=>{if(creating)return;if(u)enter(u);else if(!["inE","upE","in","up"].includes(cur))A.auth()});
+
+/* ---------- HOME ---------- */
+A.home=()=>{
+  leaveCleanup();
+  go("home",`<h1>🎱 Bingo</h1>
+  <button class="btn" onclick="A.hostSetup()">Host a game</button>
+  <div class="card"><div class="mut">Join a game</div><input id="jc" maxlength="6" placeholder="6-character code" style="text-transform:uppercase;letter-spacing:6px;text-align:center;font-size:24px"><button class="btn alt" onclick="A.join()">Join</button></div>
+  <button class="btn ghost" onclick="A.shop()">🛍️ Skin shop</button>
+  <button class="btn ghost" onclick="A.settings()">⚙️ Settings</button>
+  <button class="btn ghost" onclick="A.out()">Sign out</button>`);
+};
+
+/* ---------- SHOP ---------- */
+A.shop=()=>{
+  go("shop",`<h2>Skin shop</h2><p class="mut">You earn 10 points for every bingo win.</p><div class="skins">${SKINS.map(([s,c])=>{
+    const own=prof.owned.includes(s),eq=prof.skin===s;
+    return `<div class="skin ${eq?"eq":""}"><span>${s}</span>${eq?"Equipped":own?`<button class="btn sm" onclick="A.equip('${s}')">Use</button>`:`<button class="btn sm alt" onclick="A.buy('${s}',${c})">⭐ ${c}</button>`}</div>`}).join("")}</div>
+  <button class="btn ghost" onclick="A.home()">Back</button>`);
+};
+A.equip=s=>updateDoc(doc(db,"users",me.uid),{skin:s}).catch(err);
+A.buy=async(s,c)=>{if(prof.points<c)return toast("Not enough points yet");try{await updateDoc(doc(db,"users",me.uid),{points:increment(-c),owned:arrayUnion(s),skin:s});toast("Bought "+s)}catch(e){err(e)}};
+
+/* ---------- SETTINGS ---------- */
+const hasPw=()=>me.providerData.some(p=>p.providerId==="password");
+A.settings=()=>{
+  const pw=hasPw();
+  go("set",`<h2>Settings</h2>
+  <div class="card"><b>Username</b><input id="nu" placeholder="New username" maxlength="16"><button class="btn sm" onclick="A.chName()">Change username</button></div>
+  <div class="card"><b>${pw?"Password":"Add a username + password sign in"}</b>
+   ${pw?`<input id="op" type="password" placeholder="Current password">`:`<p class="mut">Set a password so you can also sign in with your username (${esc(me.email||"")}).</p>`}
+   <input id="np" type="password" placeholder="${pw?"New password":"Choose a password"} (6+ characters)">
+   <button class="btn sm" onclick="A.chPw()">${pw?"Change password":"Set password"}</button></div>
+  <div class="card"><b>Email</b><p class="mut">Now: ${esc(me.email||"none")}</p>
+   ${pw?`<input id="ne" type="email" placeholder="New email"><input id="ep" type="password" placeholder="Current password"><button class="btn sm" onclick="A.chEmail()">Change email</button><p class="mut">We'll send a link to the new address to confirm it.</p>`:`<p class="mut">Your email comes from Google. Set a password above to unlock changing it.</p>`}</div>
+  <button class="btn ghost" onclick="A.home()">Back</button>`);
+};
+A.chName=async()=>{
+  const n=val("nu");if(!okName(n))return;
+  try{if((await getDoc(doc(db,"usernames",n.toLowerCase()))).exists())return toast("That username is taken");
+    const b=writeBatch(db);b.set(doc(db,"usernames",n.toLowerCase()),{uid:me.uid,email:me.email||prof.email});
+    b.delete(doc(db,"usernames",prof.username.toLowerCase()));b.update(doc(db,"users",me.uid),{username:n});await b.commit();toast("Username changed");A.settings()}catch(e){err(e)}
+};
+async function reauth(pw){await reauthenticateWithCredential(me,EmailAuthProvider.credential(me.email,pw))}
+A.chPw=async()=>{
+  const n=$("np").value;if(n.length<6)return toast("Password needs 6+ characters");
+  try{if(hasPw()){await reauth($("op").value);await updatePassword(me,n)}
+    else await linkWithCredential(me,EmailAuthProvider.credential(me.email,n));
+    toast("Password saved");A.settings()}catch(e){err(e)}
+};
+A.chEmail=async()=>{
+  try{await reauth($("ep").value);await verifyBeforeUpdateEmail(me,val("ne"));toast("Check your new inbox to confirm")}catch(e){err(e)}
+};
+
+/* ---------- POOLS & CARDS ---------- */
+function makePool(mode,text){
+  const r=(a,b)=>a+Math.floor(Math.random()*(b-a+1)),seen=new Map();
+  if(mode==="classic")return [...Array(75)].map((_,i)=>({q:"BINGO"[Math.floor(i/15)]+" "+(i+1),a:String(i+1)}));
+  if(mode==="create"){
+    text.split("\n").forEach(l=>{const i=l.lastIndexOf("=");if(i<1)return;const q=l.slice(0,i).trim(),a=l.slice(i+1).trim();if(q&&a&&!seen.has(a.toLowerCase()))seen.set(a.toLowerCase(),{q,a})});
+    return [...seen.values()];
+  }
+  for(let n=0;n<8000&&seen.size<40;n++){
+    let a,b,q,x;
+    if(mode==="add"){a=r(1,40);b=r(1,40);q=`${a} + ${b}`;x=a+b}
+    else if(mode==="sub"){a=r(2,60);b=r(1,a-1);q=`${a} − ${b}`;x=a-b}
+    else if(mode==="mul"){a=r(2,15);b=r(2,15);q=`${a} × ${b}`;x=a*b}
+    else{b=r(2,12);x=r(2,30);a=b*x;q=`${a} ÷ ${b}`}
+    if(!seen.has(x))seen.set(x,{q:q+" = ?",a:String(x)});
+  }
+  return [...seen.values()];
+}
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+function buildCard(){
+  marks=new Set();lockQ=-1;
+  if(game.mode==="classic"){
+    const cols=[0,1,2,3,4].map(c=>shuffle([...Array(15)].map((_,i)=>c*15+i)).slice(0,5));
+    card=[];for(let r=0;r<5;r++)for(let c=0;c<5;c++)card.push(cols[c][r]);
+  }else card=shuffle(game.pool.map((_,i)=>i)).slice(0,25);
+}
+const LINES=(()=>{const L=[];for(let i=0;i<5;i++){L.push([0,1,2,3,4].map(c=>i*5+c),[0,1,2,3,4].map(r=>r*5+i))}L.push([0,6,12,18,24],[4,8,12,16,20]);return L})();
+
+/* ---------- HOST ---------- */
+A.hostSetup=()=>go("hostsetup",`<h2>Pick a bingo type</h2><div class="modes">${Object.entries(MODES).map(([k,[i,n]])=>`<button class="mode" onclick="A.mk('${k}')"><b>${i}</b>${n}</button>`).join("")}</div>
+  <button class="btn ghost" style="margin-top:16px" onclick="A.home()">Back</button>`);
+A.mk=m=>{
+  if(m!=="create")return A.createGame(m,"");
+  go("create",`<h2>✏️ Make your own bingo</h2><p class="mut">One per line: <b>question = answer</b>. Every answer must be different, and you need at least 25. Players see the answers on their cards.</p>
+  <textarea id="qs" placeholder="Capital of France = Paris&#10;Opposite of hot = Cold&#10;7 × 8 = 56"></textarea>
+  <button class="btn" onclick="A.createGame('create',$('qs').value)">Create game</button><button class="btn ghost" onclick="A.hostSetup()">Back</button>`);
+};
+A.createGame=async(mode,text)=>{
+  const pool=makePool(mode,text);
+  if(pool.length<25)return toast(`Need at least 25 different answers (you have ${pool.length})`);
+  const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let c;
+  try{
+    do{c=[...Array(6)].map(()=>chars[Math.floor(Math.random()*chars.length)]).join("")}while((await getDoc(doc(db,"games",c))).exists());
+    await setDoc(doc(db,"games",c),{host:me.uid,mode,pool,status:"lobby",called:[],current:-1,qid:0,round:0,winner:null});
+    code=c;isHost=true;watch();
+  }catch(e){err(e)}
+};
+function watch(){
+  unG=onSnapshot(doc(db,"games",code),s=>{
+    if(!s.exists()){toast("The host ended the game");return A.home()}
+    const prev=game;game=s.data();
+    if(isHost){if(game.status!=="playing")stopAuto();renderHost()}
+    else{if(!prev||game.round!==cardRound){cardRound=game.round;buildCard()}renderPlay()}
+  },err);
+  if(isHost)unPl=onSnapshot(collection(db,"games",code,"players"),s=>{players=s.docs.map(d=>d.data());renderHost()});
+}
+function renderHost(){
+  if(!game||cur==="home")return;
+  const st=game.status,cq=game.current>=0?esc(game.pool[game.current].q):"…";
+  go("host",`<div class="card center"><div class="mut">Game code — ${MODES[game.mode][1]}</div><div class="code">${code}</div><div class="mut">${players.length} player${players.length===1?"":"s"} joined · you're the caller</div></div>
+  <div class="card center">${st==="lobby"?`<div class="mut">${game.winner?"🎉 "+esc(game.winner.name)+" got BINGO! Boards wiped.":"Lobby"}</div><div class="big">${game.winner?"New round?":"Waiting"}</div><button class="btn" onclick="A.start()">Start game</button>`
+  :`<div class="mut">Now calling (${game.called.length}/${game.pool.length})</div><div class="big">${cq}</div><button class="btn" onclick="A.call()">Call next</button>
+   <div class="mut">Auto-call every <select id="as" style="width:auto;display:inline" onchange="A.autoSet(this.value)">${[4,6,8,12,20].map(n=>`<option ${n===autoSec?"selected":""}>${n}</option>`)}</select>s <button class="btn sm ${auto?"red":"alt"}" onclick="A.autoTog()">${auto?"Stop":"Start"}</button></div>`}</div>
+  <div class="card"><div class="mut">Players</div><div class="chips">${players.map(p=>`<span class="chip">${p.skin} ${esc(p.name)}</span>`).join("")||"<span class='mut'>Nobody yet. Share the code.</span>"}</div></div>
+  ${game.called.length?`<div class="card"><div class="mut">Called so far</div><div class="chips">${[...game.called].reverse().map(i=>`<span class="chip ball">${game.mode==="classic"?esc(game.pool[i].q):esc(game.pool[i].a)}</span>`).join("")}</div></div>`:""}
+  <button class="btn ghost" onclick="A.end()">End game</button>`);
+}
+A.start=()=>updateDoc(doc(db,"games",code),{status:"playing"}).catch(err);
+A.call=async()=>{
+  if(!game||game.status!=="playing")return;
+  const left=game.pool.map((_,i)=>i).filter(i=>!game.called.includes(i));
+  if(!left.length){stopAuto();return toast("Everything has been called")}
+  const i=left[Math.floor(Math.random()*left.length)];
+  updateDoc(doc(db,"games",code),{called:[...game.called,i],current:i,qid:game.qid+1}).catch(err);
+};
+A.autoTog=()=>{if(auto)stopAuto();else{auto=setInterval(A.call,autoSec*1000);A.call()}renderHost()};
+A.autoSet=v=>{autoSec=+v;if(auto){stopAuto();auto=setInterval(A.call,autoSec*1000);renderHost()}};
+function stopAuto(){clearInterval(auto);auto=null}
+A.end=async()=>{const c=code;leaveCleanup();try{await deleteDoc(doc(db,"games",c))}catch(e){}A.home()};
+
+/* ---------- PLAYER ---------- */
+A.join=async()=>{
+  const c=val("jc").toUpperCase();if(c.length!==6)return toast("Codes have 6 letters or digits");
+  try{
+    const s=await getDoc(doc(db,"games",c));if(!s.exists())return toast("No game with that code");
+    await setDoc(doc(db,"games",c,"players",me.uid),{name:prof.username,skin:prof.skin});
+    code=c;isHost=false;game=null;watch();
+  }catch(e){err(e)}
+};
+function renderPlay(){
+  if(!game||cur==="home")return;
+  const g=game,cl=g.mode==="classic";let body;
+  if(g.status!=="playing")body=`<div class="card center"><div class="big">⏳</div><h2>Waiting for host to start...</h2>${g.winner?`<p>🎉 ${esc(g.winner.name)} got BINGO! Your board was wiped.</p>`:""}</div>`;
+  else body=`<div class="card center"><div class="mut">${cl?"Number called":"Solve it, then tap the answer"}</div><div class="big">${g.current>=0?esc(g.pool[g.current].q):"Get ready…"}</div>${!cl&&lockQ===g.qid?'<div class="bad">Locked until the next question</div>':""}</div>
+   <div class="grid5">${card.map((ix,p)=>`<button class="cell ${marks.has(p)?"on":""}" onclick="A.tap(${p})">${esc(g.pool[ix].a)}</button>`).join("")}</div>`;
+  go("play",`<div class="card center"><span class="mut">Game</span> <b style="letter-spacing:4px">${code}</b> <button class="btn sm ghost" onclick="A.leave()">Leave</button></div>${body}`);
+}
+function flash(p){const c=document.querySelectorAll(".cell")[p];if(c)c.classList.add("shake")}
+A.tap=p=>{
+  const g=game;if(!g||g.status!=="playing"||marks.has(p))return;
+  const ix=card[p];
+  if(g.mode==="classic"){
+    if(!g.called.includes(ix)){renderPlay();flash(p);return toast("That number hasn't been called")}
+    marks.add(p);
+  }else{
+    if(g.current<0)return;
+    if(lockQ===g.qid){flash(p);return toast("You're done with this question")}
+    lockQ=g.qid;
+    if(ix===g.current)marks.add(p);else{renderPlay();flash(p);return toast("Wrong box! Wait for the next question")}
+  }
+  renderPlay();
+  if(LINES.some(l=>l.every(i=>marks.has(i))))claim();
+};
+async function claim(){
+  if(claiming)return;claiming=true;const ref=doc(db,"games",code),round=cardRound;
+  try{
+    const won=await runTransaction(db,async t=>{
+      const d=(await t.get(ref)).data();if(d.round!==round||d.status!=="playing")return false;
+      t.update(ref,{round:round+1,status:"lobby",called:[],current:-1,qid:0,winner:{name:prof.username,uid:me.uid}});return true;
+    });
+    if(won){await updateDoc(doc(db,"users",me.uid),{points:increment(10)});toast("🎉 BINGO! +10 points")}
+  }catch(e){err(e)}
+  claiming=false;
+}
+A.leave=async()=>{const c=code;try{await deleteDoc(doc(db,"games",c,"players",me.uid))}catch(e){}A.home()};
+
+function leaveCleanup(){unG&&unG();unPl&&unPl();unG=unPl=null;stopAuto();game=null;code="";isHost=false;players=[];cardRound=-1}
+A.auth();
+</script></body></html>
