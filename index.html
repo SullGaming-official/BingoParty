@@ -235,17 +235,18 @@ function watch(){
     if(isHost){if(game.status!=="playing")stopAuto();renderHost()}
     else{if(!prev||game.round!==cardRound){cardRound=game.round;buildCard()}renderPlay()}
   },err);
-  if(isHost)unPl=onSnapshot(collection(db,"games",code,"players"),s=>{players=s.docs.map(d=>d.data());renderHost()});
+  unPl=onSnapshot(collection(db,"games",code,"players"),s=>{players=s.docs.map(d=>d.data());if(!game)return;isHost?renderHost():renderPlay()});
 }
+const lb=()=>[...players].sort((a,b)=>(b.wins||0)-(a.wins||0)||a.name.localeCompare(b.name)).map((p,i)=>`<div style="display:flex;gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--line)"><span style="width:22px">${i+1}</span><span style="font-size:24px">${p.skin}</span><span style="flex:1">${esc(p.name)}</span><b>${p.wins||0} 🏆</b></div>`).join("");
 function renderHost(){
-  if(!game||cur==="home")return;
+  if(!game)return;
   const st=game.status,cq=game.current>=0?esc(game.pool[game.current].q):"…";
   go("host",`<div class="card center"><div class="mut">Game code — ${MODES[game.mode][1]}</div><div class="code">${code}</div><div class="mut">${players.length} player${players.length===1?"":"s"} joined · you're the caller</div></div>
   <div class="card center">${st==="lobby"?`<div class="mut">${game.winner?"🎉 "+esc(game.winner.name)+" got BINGO! Boards wiped.":"Lobby"}</div><div class="big">${game.winner?"New round?":"Waiting"}</div><button class="btn" onclick="A.start()">Start game</button>`
   :`<div class="mut">Now calling (${game.called.length}/${game.pool.length})</div><div class="big">${cq}</div><button class="btn" onclick="A.call()">Call next</button>
    <div class="mut">Auto-call every <select id="as" style="width:auto;display:inline" onchange="A.autoSet(this.value)">${[4,6,8,12,20].map(n=>`<option ${n===autoSec?"selected":""}>${n}</option>`)}</select>s <button class="btn sm ${auto?"red":"alt"}" onclick="A.autoTog()">${auto?"Stop":"Start"}</button></div>`}</div>
-  <div class="card"><div class="mut">Players</div><div class="chips">${players.map(p=>`<span class="chip">${p.skin} ${esc(p.name)}</span>`).join("")||"<span class='mut'>Nobody yet. Share the code.</span>"}</div></div>
-  ${game.called.length?`<div class="card"><div class="mut">Called so far</div><div class="chips">${[...game.called].reverse().map(i=>`<span class="chip ball">${game.mode==="classic"?esc(game.pool[i].q):esc(game.pool[i].a)}</span>`).join("")}</div></div>`:""}
+  <div class="card"><b>🏆 Leaderboard</b>${lb()||"<p class='mut'>Nobody yet. Share the code.</p>"}</div>
+  ${game.called.length?`<div class="card"><div class="mut">Called so far</div><div class="chips">${[...game.called].reverse().map(i=>`<span class="chip ball">${esc(game.pool[i].q)}</span>`).join("")}</div></div>`:""}
   <button class="btn ghost" onclick="A.end()">End game</button>`);
 }
 A.start=()=>updateDoc(doc(db,"games",code),{status:"playing"}).catch(err);
@@ -266,17 +267,18 @@ A.join=async()=>{
   const c=val("jc").toUpperCase();if(c.length!==6)return toast("Codes have 6 letters or digits");
   try{
     const s=await getDoc(doc(db,"games",c));if(!s.exists())return toast("No game with that code");
-    await setDoc(doc(db,"games",c,"players",me.uid),{name:prof.username,skin:prof.skin});
+    await setDoc(doc(db,"games",c,"players",me.uid),{name:prof.username,skin:prof.skin},{merge:true});
     code=c;isHost=false;game=null;watch();
   }catch(e){err(e)}
 };
 function renderPlay(){
-  if(!game||cur==="home")return;
+  if(!game)return;
   const g=game,cl=g.mode==="classic";let body;
   if(g.status!=="playing")body=`<div class="card center"><div class="big">⏳</div><h2>Waiting for host to start...</h2>${g.winner?`<p>🎉 ${esc(g.winner.name)} got BINGO! Your board was wiped.</p>`:""}</div>`;
   else body=`<div class="card center"><div class="mut">${cl?"Number called":"Solve it, then tap the answer"}</div><div class="big">${g.current>=0?esc(g.pool[g.current].q):"Get ready…"}</div>${!cl&&lockQ===g.qid?'<div class="bad">Locked until the next question</div>':""}</div>
    <div class="grid5">${card.map((ix,p)=>`<button class="cell ${marks.has(p)?"on":""}" onclick="A.tap(${p})">${esc(g.pool[ix].a)}</button>`).join("")}</div>`;
-  go("play",`<div class="card center"><span class="mut">Game</span> <b style="letter-spacing:4px">${code}</b> <button class="btn sm ghost" onclick="A.leave()">Leave</button></div>${body}`);
+  go("play",`<div class="card center"><span class="mut">Game</span> <b style="letter-spacing:4px">${code}</b> <button class="btn sm ghost" onclick="A.leave()">Leave</button></div>${body}
+  <div class="card"><div class="mut">Players in this game (${players.length})</div><div class="chips">${players.map(p=>`<span class="chip">${p.skin} ${esc(p.name)}${p.wins?` · ${p.wins}🏆`:""}</span>`).join("")}</div></div>`);
 }
 function flash(p){const c=document.querySelectorAll(".cell")[p];if(c)c.classList.add("shake")}
 A.tap=p=>{
@@ -301,7 +303,7 @@ async function claim(){
       const d=(await t.get(ref)).data();if(d.round!==round||d.status!=="playing")return false;
       t.update(ref,{round:round+1,status:"lobby",called:[],current:-1,qid:0,winner:{name:prof.username,uid:me.uid}});return true;
     });
-    if(won){await updateDoc(doc(db,"users",me.uid),{points:increment(10)});toast("🎉 BINGO! +10 points")}
+    if(won){await updateDoc(doc(db,"games",code,"players",me.uid),{wins:increment(1)});await updateDoc(doc(db,"users",me.uid),{points:increment(10)});toast("🎉 BINGO! +10 points")}
   }catch(e){err(e)}
   claiming=false;
 }
@@ -309,4 +311,6 @@ A.leave=async()=>{const c=code;try{await deleteDoc(doc(db,"games",c,"players",me
 
 function leaveCleanup(){unG&&unG();unPl&&unPl();unG=unPl=null;stopAuto();game=null;code="";isHost=false;players=[];cardRound=-1}
 A.auth();
-</script></body></html>
+</script>
+</body>
+</html>
